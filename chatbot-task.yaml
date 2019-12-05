@@ -1,0 +1,52 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: chatbot-task
+spec:
+  inputs:
+    resources:
+    - name: repo
+      type: git
+    - name: pr
+      type: pullRequest
+    params:
+    - name: comment
+      type: string
+  outputs:
+    resources:
+    - name: pr
+      type: pullRequest
+  steps:
+    - name: copy-pr
+      image: ubuntu
+      command: ["/bin/sh"]
+      args:
+      - -c
+      - cp -r /workspace/pr/ /workspace/output/
+    - name: run-command
+      image: ubuntu
+      command: ["/bin/bash"]
+      args:
+      - -c
+      - |
+        set -ex
+        comment="$(inputs.params.comment)"
+        msg=""
+        case $comment in
+          "/chatbot test" )
+            cd /workspace/repo
+            output=$(./test.sh)
+            code=$?
+            msg="Tests Passed."
+            if [[ $code -ne 0 ]]; then
+              msg="Tests Failed. Output: $output"
+            fi;;
+          /chatbot* )
+            msg="Usage: /chatbot \<command\>. Current commands are: test";;
+          * )
+            echo "skipping command $comment, does not start with /chatbot prefix";;
+        esac
+        if [[ ! -z "$msg" ]]; then
+          echo "$msg" > /workspace/output/pr/comments/new
+        fi
+
