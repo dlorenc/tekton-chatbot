@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: chatbot-binding
+spec:
+  params:
+  - name: prurl
+    value: $(body.issue.html_url)
+  - name: repourl
+    value: $(body.repository.html_url)
+  - name: comment
+    value: $(body.comment.body)
+  - name: author_association
+    value: $(body.issue.author_association)

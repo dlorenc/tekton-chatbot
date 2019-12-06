@@ -12,6 +12,8 @@ spec:
     params:
     - name: comment
       type: string
+    - name: author_association
+      type: string
   outputs:
     resources:
     - name: pr
@@ -24,17 +26,32 @@ spec:
       - -c
       - cp -r /workspace/pr/ /workspace/output/
     - name: run-command
-      image: ubuntu
+      image: gcr.io/cloud-builders/git
       command: ["/bin/bash"]
       args:
       - -c
       - |
         set -ex
+        # Skip if the PR was not opened by an OWNER
+        author="$(inputs.params.author_association)"
+        if [[ "$author" -ne "OWNER" ]]; then
+          echo "Skipping PR, author is not an OWNER: $author"
+          exit 0
+        fi
+        # Get the PR number from the PR URL.
+        prurl="$(inputs.resources.pr.url)"
+        prNum=$(echo "$prurl" | awk -F/ '{print $NF}')
+
         comment="$(inputs.params.comment)"
         msg=""
         case $comment in
           "/chatbot test" )
             cd /workspace/repo
+            # Checkout the PR branch
+            git fetch origin refs/pull/$prNum/head:pull_$prNum
+            git checkout pull_$prNum
+            
+            # Run tests
             output=$(./test.sh)
             code=$?
             msg="Tests Passed."
